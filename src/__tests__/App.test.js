@@ -14,7 +14,7 @@ describe('App.vue', () => {
   })
 
   it('renders the title', () => {
-    expect(wrapper.text()).toContain('Entitybase-SSE')
+    expect(wrapper.text()).toContain('Kafka2SSE')
   })
 
   it('has backend URL input', () => {
@@ -54,7 +54,7 @@ describe('App.vue', () => {
 
   it('has refresh streams button', () => {
     const buttons = wrapper.findAll('button')
-    const refreshButton = buttons.find(b => b.text() === 'Refresh Streams')
+    const refreshButton = buttons.find(b => b.text() === 'Refresh Topics')
     expect(refreshButton.exists()).toBe(true)
   })
 
