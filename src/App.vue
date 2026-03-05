@@ -1,0 +1,461 @@
+<script setup>
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+
+const backendUrl = ref('http://localhost:8888')
+const health = ref({ status: '', kafka: '' })
+const topics = ref([])
+const selectedTopic = ref('')
+const messages = ref([])
+const prettyPrint = ref(false)
+const isPaused = ref(false)
+const error = ref('')
+const info = ref('')
+
+const offset = ref('')
+const since = ref('')
+const limit = ref('')
+
+const rateCurrent = ref('..')
+const rateAverage = ref('..')
+
+let eventSource = null
+let freqChecker = null
+let reconnectTimeout = null
+let reconnectAttempts = 0
+const MAX_RECONNECT_ATTEMPTS = 10
+const INITIAL_RECONNECT_DELAY = 1000
+let messageCount = 0
+let totalMessages = 0
+let lastCheck = Date.now()
+let isManualClose = false
+
+const streamUrl = computed(() => {
+  if (!selectedTopic.value) return ''
+  let url = `${backendUrl.value}/v1/streams/${selectedTopic.value}`
+  const params = []
+  if (offset.value) params.push(`offset=${offset.value}`)
+  if (since.value) params.push(`since=${since.value}`)
+  if (limit.value) params.push(`limit=${limit.value}`)
+  if (params.length > 0) url += '?' + params.join('&')
+  return url
+})
+
+const formattedMessages = computed(() => {
+  return messages.value.map(msg => {
+    if (prettyPrint.value) {
+      try {
+        return JSON.stringify(JSON.parse(msg), null, 2)
+      } catch {
+        return msg
+      }
+    }
+    return msg
+  })
+})
+
+async function fetchTopics() {
+  error.value = ''
+  info.value = 'Loading topics...'
+  try {
+    const res = await fetch(`${backendUrl.value}/v1/topics`)
+    const data = await res.json()
+    topics.value = data.topics || []
+    if (topics.value.length === 0) {
+      info.value = 'No topics found. Is the backend running?'
+    } else {
+      info.value = ''
+    }
+  } catch (e) {
+    error.value = `Failed to load topics: ${e.message}`
+    info.value = ''
+  }
+}
+
+async function fetchHealth() {
+  try {
+    const res = await fetch(`${backendUrl.value}/health`)
+    const data = await res.json()
+    health.value = data
+  } catch {
+    health.value = { status: 'unknown', kafka: 'disconnected' }
+  }
+}
+
+function connectToStream() {
+  if (eventSource) {
+    eventSource.close()
+    eventSource = null
+  }
+
+  if (!selectedTopic.value) {
+    info.value = 'Select a topic to view messages'
+    return
+  }
+
+  messages.value = []
+  messageCount = 0
+  totalMessages = 0
+  lastCheck = Date.now()
+  info.value = 'Connecting...'
+  error.value = ''
+  isManualClose = false
+  reconnectAttempts = 0
+
+  eventSource = new EventSource(streamUrl.value)
+
+  eventSource.onopen = () => {
+    info.value = 'Connected'
+    reconnectAttempts = 0
+    startRateChecker()
+  }
+
+  eventSource.onmessage = (msg) => {
+    messageCount++
+    totalMessages++
+    if (!isPaused.value) {
+      messages.value.unshift(msg.data)
+      if (messages.value.length > 200) {
+        messages.value.pop()
+      }
+    }
+  }
+
+  eventSource.onerror = () => {
+    error.value = 'Connection error'
+    info.value = ''
+    stopRateChecker()
+    attemptReconnect()
+  }
+}
+
+function attemptReconnect() {
+  if (isManualClose || reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+    if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+      error.value = `Failed to reconnect after ${MAX_RECONNECT_ATTEMPTS} attempts. Please reconnect manually.`
+    }
+    return
+  }
+
+  const delay = Math.min(INITIAL_RECONNECT_DELAY * Math.pow(2, reconnectAttempts), 30000)
+  reconnectAttempts++
+  info.value = `Reconnecting in ${delay / 1000}s... (attempt ${reconnectAttempts})`
+
+  reconnectTimeout = setTimeout(() => {
+    if (!isManualClose && selectedTopic.value) {
+      connectToStream()
+    }
+  }, delay)
+}
+
+function startRateChecker() {
+  stopRateChecker()
+  freqChecker = setInterval(() => {
+    const now = Date.now()
+    const elapsed = now - lastCheck
+    if (elapsed >= 1000) {
+      rateCurrent.value = messageCount
+      const avg = Math.round(totalMessages / ((now - lastCheck) / 1000))
+      rateAverage.value = avg
+      messageCount = 0
+      lastCheck = now
+    }
+  }, 100)
+}
+
+function stopRateChecker() {
+  if (freqChecker) {
+    clearInterval(freqChecker)
+    freqChecker = null
+  }
+}
+
+async function copyMessages() {
+  if (messages.value.length === 0) {
+    alert('No messages to copy')
+    return
+  }
+  try {
+    await navigator.clipboard.writeText(messages.value.join('\n'))
+    alert('Messages copied to clipboard!')
+  } catch {
+    alert('Failed to copy messages')
+  }
+}
+
+function clearMessages() {
+  messages.value = []
+}
+
+function manualReconnect() {
+  if (reconnectTimeout) clearTimeout(reconnectTimeout)
+  isManualClose = false
+  reconnectAttempts = 0
+  connectToStream()
+}
+
+watch(selectedTopic, () => {
+  if (selectedTopic.value) {
+    isManualClose = false
+    connectToStream()
+  }
+})
+
+watch(backendUrl, () => {
+  fetchHealth()
+  fetchTopics()
+})
+
+onMounted(() => {
+  fetchHealth()
+  fetchTopics()
+})
+
+onUnmounted(() => {
+  isManualClose = true
+  if (reconnectTimeout) clearTimeout(reconnectTimeout)
+  if (eventSource) eventSource.close()
+  stopRateChecker()
+})
+</script>
+
+<template>
+  <div class="container">
+    <h1>Kafka2SSE <span v-if="health.status" class="version" :class="health.status">{{ health.status }}</span></h1>
+    
+    <div class="controls">
+      <div class="control-group">
+        <label>Backend URL:</label>
+        <input v-model="backendUrl" type="text" @change="fetchTopics" />
+        <button @click="fetchTopics">Refresh Topics</button>
+      </div>
+
+      <div class="control-group">
+        <label>Topic:</label>
+        <select v-model="selectedTopic">
+          <option value="">Select a topic...</option>
+          <option v-for="topic in topics" :key="topic" :value="topic">
+            {{ topic }}
+          </option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label>Offset:</label>
+        <input v-model="offset" type="number" placeholder="start at latest" min="0" />
+      </div>
+
+      <div class="control-group">
+        <label>Since (ISO8601):</label>
+        <input v-model="since" type="text" placeholder="2026-03-05T12:00:00Z" />
+      </div>
+
+      <div class="control-group">
+        <label>Limit:</label>
+        <input v-model="limit" type="number" placeholder="no limit" min="0" />
+      </div>
+    </div>
+
+    <div v-if="error" class="alert error">{{ error }}</div>
+    <div v-if="info" class="alert info">{{ info }}</div>
+
+    <div class="rate-display">
+      <span>Messages/sec: {{ rateCurrent }}</span>
+      <span>(avg: {{ rateAverage }}/s)</span>
+      <span v-if="health.kafka" class="kafka-status">Kafka: {{ health.kafka }}</span>
+    </div>
+
+    <div class="actions">
+      <label>
+        <input v-model="prettyPrint" type="checkbox" />
+        Pretty print
+      </label>
+      <label>
+        <input v-model="isPaused" type="checkbox" />
+        Pause
+      </label>
+      <button @click="copyMessages">Copy</button>
+      <button @click="clearMessages">Clear</button>
+      <button @click="manualReconnect">Reconnect</button>
+    </div>
+
+    <pre class="feed"><code v-for="(msg, i) in formattedMessages" :key="i">{{ msg }}
+</code></pre>
+  </div>
+</template>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  margin: 0;
+  padding: 20px;
+  background: #f5f5f5;
+}
+
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+h1 {
+  margin-top: 0;
+  color: #333;
+}
+
+.version {
+  font-size: 0.5em;
+  color: #666;
+  font-weight: normal;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.version.ok {
+  background: #d4edda;
+  color: #155724;
+}
+
+.version.degraded {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.controls {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 15px;
+}
+
+.control-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.control-group label {
+  font-weight: bold;
+}
+
+.control-group input[type="text"] {
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  width: 250px;
+}
+
+.control-group select {
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  min-width: 200px;
+}
+
+.control-group input[type="number"] {
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  width: 100px;
+}
+
+.control-group button {
+  padding: 6px 12px;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.control-group button:hover {
+  background: #0056b3;
+}
+
+.alert {
+  padding: 10px 15px;
+  border-radius: 4px;
+  margin-bottom: 15px;
+}
+
+.alert.error {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.alert.info {
+  background: #d1ecf1;
+  color: #0c5460;
+  border: 1px solid #bee5eb;
+}
+
+.rate-display {
+  padding: 10px;
+  background: #e9ecef;
+  border-radius: 4px;
+  margin-bottom: 15px;
+}
+
+.rate-display span {
+  margin-right: 20px;
+  font-weight: bold;
+}
+
+.kafka-status {
+  color: #28a745;
+}
+
+.actions {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.actions label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+
+.actions button {
+  padding: 6px 12px;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.actions button:hover {
+  background: #218838;
+}
+
+.feed {
+  max-height: 500px;
+  overflow-y: auto;
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  padding: 10px;
+  border-radius: 4px;
+  font-size: 13px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.feed code {
+  display: block;
+}
+</style>
