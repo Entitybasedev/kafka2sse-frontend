@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 
 const backendUrl = ref(import.meta.env.KAFKA2SSE_BACKEND_URL || 'http://localhost:8888')
+const version = ref(import.meta.env.VITE_APP_VERSION || 'dev')
 const health = ref({ status: '', kafka: '' })
 const topics = ref([])
 const selectedTopic = ref('')
@@ -278,6 +279,10 @@ onUnmounted(() => {
       <button @click="manualReconnect">Reconnect</button>
     </div>
 
+    <div class="footer">
+      <span class="version">v{{ version }}</span>
+    </div>
+
     <pre class="feed"><code v-for="(msg, i) in formattedMessages" :key="i">{{ msg }}
 </code></pre>
   </div>
@@ -457,5 +462,18 @@ h1 {
 
 .feed code {
   display: block;
+}
+
+.footer {
+  text-align: center;
+  padding: 10px;
+  font-size: 12px;
+  color: #666;
+  border-top: 1px solid #ddd;
+  margin-top: 10px;
+}
+
+.footer .version {
+  color: #888;
 }
 </style>
