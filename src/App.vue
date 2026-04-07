@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 
-const backendUrl = ref(import.meta.env.VITE_BACKEND_URL || 'http://localhost:8888')
+const backendUrl = ref(import.meta.env.KAFKA2SSE_BACKEND_URL || 'http://localhost:8888')
 const health = ref({ status: '', kafka: '' })
 const topics = ref([])
 const selectedTopic = ref('')
