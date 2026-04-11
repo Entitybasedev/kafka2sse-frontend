@@ -45,14 +45,15 @@ const streamUrl = computed(() => {
 
 const formattedMessages = computed(() => {
   return messages.value.map(msg => {
+    const cleanMsg = msg.replace(/^data: /, '')
     if (prettyPrint.value) {
       try {
-        return JSON.stringify(JSON.parse(msg), null, 2)
+        return JSON.stringify(JSON.parse(cleanMsg), null, 2)
       } catch {
-        return msg
+        return cleanMsg
       }
     }
-    return msg
+    return cleanMsg
   })
 })
 
@@ -291,8 +292,7 @@ onUnmounted(() => {
       <span class="version">v{{ version }}</span>
     </div>
 
-    <pre class="feed"><code v-for="(msg, i) in formattedMessages" :key="i">{{ msg }}
-</code></pre>
+    <pre class="feed"><code v-for="(msg, i) in formattedMessages" :key="i" v-html="msg"></code></pre>
   </div>
 </template>
 
