@@ -267,11 +267,13 @@ onUnmounted(() => {
     <div v-if="info" class="alert info">{{ info }}</div>
 
     <div class="rate-display">
-      <span>Messages/sec: {{ rateCurrent }}</span>
-      <span>(avg: {{ rateAverage }}/s)</span>
+      <span>Status:</span>
       <span v-if="health.kafka" class="kafka-status">Kafka: {{ health.kafka }}</span>
       <span v-if="isConnecting" class="connecting">↻ Connecting...</span>
       <span v-if="topicConnected" class="topic-status">Topic: connected</span>
+      <span class="rate-spacer"></span>
+      <span>Messages/sec: {{ rateCurrent }}</span>
+      <span>(avg: {{ rateAverage }}/s)</span>
     </div>
 
     <div class="actions">
@@ -419,6 +421,8 @@ h1 {
 }
 
 .rate-display {
+  display: flex;
+  align-items: center;
   padding: 10px;
   background: #e9ecef;
   border-radius: 4px;
@@ -428,6 +432,10 @@ h1 {
 .rate-display span {
   margin-right: 20px;
   font-weight: bold;
+}
+
+.rate-spacer {
+  flex-grow: 1;
 }
 
 .kafka-status {
