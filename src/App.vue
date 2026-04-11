@@ -12,6 +12,7 @@ const isPaused = ref(false)
 const error = ref('')
 const info = ref('')
 const topicConnected = ref(false)
+const isConnecting = ref(false)
 
 const offset = ref('')
 const since = ref('')
@@ -98,7 +99,8 @@ function connectToStream() {
   messageCount = 0
   totalMessages = 0
   lastCheck = Date.now()
-  info.value = 'Connecting...'
+  isConnecting.value = true
+  info.value = ''
   error.value = ''
   isManualClose = false
   reconnectAttempts = 0
@@ -106,6 +108,7 @@ function connectToStream() {
   eventSource = new EventSource(streamUrl.value)
 
   eventSource.onopen = () => {
+    isConnecting.value = false
     topicConnected.value = true
     reconnectAttempts = 0
     startRateChecker()
@@ -123,6 +126,7 @@ function connectToStream() {
   }
 
   eventSource.onerror = () => {
+    isConnecting.value = false
     error.value = 'Connection error'
     info.value = ''
     topicConnected.value = false
@@ -265,7 +269,8 @@ onUnmounted(() => {
       <span>Messages/sec: {{ rateCurrent }}</span>
       <span>(avg: {{ rateAverage }}/s)</span>
       <span v-if="health.kafka" class="kafka-status">Kafka: {{ health.kafka }}</span>
-      <span v-if="topicConnected" class="topic-status">Connected to {{ selectedTopic }}</span>
+      <span v-if="isConnecting" class="connecting">↻ Connecting...</span>
+      <span v-if="topicConnected" class="topic-status">Topic: connected</span>
     </div>
 
     <div class="actions">
@@ -431,6 +436,16 @@ h1 {
 
 .topic-status {
   color: #28a745;
+}
+
+.connecting {
+  color: #666;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .actions {
