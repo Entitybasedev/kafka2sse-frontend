@@ -34,9 +34,9 @@ const streamUrl = computed(() => {
   if (!selectedTopic.value) return ''
   let url = `${backendUrl.value}/v1/streams/${selectedTopic.value}`
   const params = []
-  if (offset.value) params.push(`offset=${offset.value}`)
+  if (offset.value !== '') params.push(`offset=${offset.value}`)
   if (since.value) params.push(`since=${since.value}`)
-  if (limit.value) params.push(`limit=${limit.value}`)
+  if (limit.value !== '') params.push(`limit=${limit.value}`)
   if (params.length > 0) url += '?' + params.join('&')
   return url
 })
@@ -242,7 +242,7 @@ onUnmounted(() => {
 
       <div class="control-group">
         <label>Offset:</label>
-        <input v-model="offset" type="number" placeholder="start at latest" min="0" />
+        <input v-model="offset" type="number" placeholder="0 for earliest" min="0" />
       </div>
 
       <div class="control-group">
