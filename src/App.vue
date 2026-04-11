@@ -20,6 +20,7 @@ const limit = ref('')
 
 const rateCurrent = ref('..')
 const rateAverage = ref('..')
+const connectionDuration = ref('0s')
 
 let eventSource = null
 let freqChecker = null
@@ -29,6 +30,7 @@ const MAX_RECONNECT_ATTEMPTS = 10
 const INITIAL_RECONNECT_DELAY = 1000
 let messageCount = 0
 let totalMessages = 0
+let connectionStartTime = null
 let lastCheck = Date.now()
 let isManualClose = false
 
@@ -111,6 +113,8 @@ function connectToStream() {
   eventSource.onopen = () => {
     isConnecting.value = false
     topicConnected.value = true
+    connectionStartTime = Date.now()
+    totalMessages = 0
     reconnectAttempts = 0
     startRateChecker()
   }
@@ -131,6 +135,7 @@ function connectToStream() {
     error.value = 'Connection error'
     info.value = ''
     topicConnected.value = false
+    connectionStartTime = null
     stopRateChecker()
     attemptReconnect()
   }
@@ -162,8 +167,14 @@ function startRateChecker() {
     const elapsed = now - lastCheck
     if (elapsed >= 1000) {
       rateCurrent.value = messageCount
-      const avg = Math.round(totalMessages / ((now - lastCheck) / 1000))
-      rateAverage.value = avg
+      if (connectionStartTime) {
+        const secondsElapsed = (now - connectionStartTime) / 1000
+        rateAverage.value = Math.round(totalMessages / secondsElapsed)
+        const totalSecs = Math.floor(secondsElapsed)
+        const mins = Math.floor(totalSecs / 60)
+        const secs = totalSecs % 60
+        connectionDuration.value = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`
+      }
       messageCount = 0
       lastCheck = now
     }
@@ -271,6 +282,7 @@ onUnmounted(() => {
       <span v-if="health.kafka" class="kafka-status">Kafka: {{ health.kafka }}</span>
       <span v-if="isConnecting" class="connecting">↻ Connecting...</span>
       <span v-if="topicConnected" class="topic-status">Topic: connected</span>
+      <span v-if="topicConnected" class="duration">({{ connectionDuration }})</span>
       <span class="rate-spacer"></span>
       <span>Messages/sec: {{ rateCurrent }}</span>
       <span>(avg: {{ rateAverage }}/s)</span>
@@ -447,6 +459,10 @@ h1 {
 
 .topic-status {
   color: #28a745;
+}
+
+.duration {
+  color: #666;
 }
 
 .connecting {
