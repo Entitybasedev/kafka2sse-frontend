@@ -67,6 +67,9 @@ async function fetchTopics() {
     const res = await fetch(`${backendUrl.value}/v1/topics`)
     const data = await res.json()
     topics.value = data.topics || []
+    if (topics.value.includes('entity_change') && !selectedTopic.value) {
+      selectedTopic.value = 'entity_change'
+    }
     if (topics.value.length === 0) {
       info.value = 'No topics found. Is the backend running?'
     } else {
