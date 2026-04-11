@@ -372,7 +372,7 @@ h1 {
   border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 14px;
-  width: 100px;
+  width: 150px;
 }
 
 .control-group input::placeholder {
