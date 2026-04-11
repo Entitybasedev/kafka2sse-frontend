@@ -350,6 +350,7 @@ h1 {
 }
 
 .control-group input[type="text"] {
+  color: #111;
   padding: 6px 10px;
   border: 1px solid #ddd;
   border-radius: 4px;
@@ -366,11 +367,16 @@ h1 {
 }
 
 .control-group input[type="number"] {
+  color: #111;
   padding: 6px 10px;
   border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 14px;
   width: 100px;
+}
+
+.control-group input::placeholder {
+  color: #666;
 }
 
 .control-group button {
