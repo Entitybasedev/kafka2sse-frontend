@@ -11,6 +11,7 @@ const prettyPrint = ref(false)
 const isPaused = ref(false)
 const error = ref('')
 const info = ref('')
+const topicConnected = ref(false)
 
 const offset = ref('')
 const since = ref('')
@@ -105,7 +106,7 @@ function connectToStream() {
   eventSource = new EventSource(streamUrl.value)
 
   eventSource.onopen = () => {
-    info.value = 'Connected'
+    topicConnected.value = true
     reconnectAttempts = 0
     startRateChecker()
   }
@@ -124,6 +125,7 @@ function connectToStream() {
   eventSource.onerror = () => {
     error.value = 'Connection error'
     info.value = ''
+    topicConnected.value = false
     stopRateChecker()
     attemptReconnect()
   }
@@ -263,6 +265,7 @@ onUnmounted(() => {
       <span>Messages/sec: {{ rateCurrent }}</span>
       <span>(avg: {{ rateAverage }}/s)</span>
       <span v-if="health.kafka" class="kafka-status">Kafka: {{ health.kafka }}</span>
+      <span v-if="topicConnected" class="topic-status">Connected to {{ selectedTopic }}</span>
     </div>
 
     <div class="actions">
@@ -423,6 +426,10 @@ h1 {
 }
 
 .kafka-status {
+  color: #28a745;
+}
+
+.topic-status {
   color: #28a745;
 }
 
