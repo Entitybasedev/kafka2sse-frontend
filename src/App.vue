@@ -452,10 +452,13 @@ h1 {
   background: #e9ecef;
   border-radius: 4px;
   margin-bottom: 15px;
+  overflow-x: auto;
+  white-space: nowrap;
 }
 
 .rate-display span {
-  margin-right: 20px;
+  margin-right: 15px;
+  flex-shrink: 0;
 }
 
 .rate-display > span:first-child {
