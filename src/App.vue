@@ -241,7 +241,7 @@ onUnmounted(() => {
 
 <template>
   <div class="container">
-    <h1>Kafka2SSE <span v-if="health.status" class="version" :class="health.status">{{ health.status }}</span></h1>
+    <h1>Kafka2SSE</h1>
     
     <div class="controls">
       <div class="control-group">
@@ -282,7 +282,9 @@ onUnmounted(() => {
 
     <div class="rate-display">
       <span>Status:</span>
-      <span v-if="health.kafka" class="kafka-status">Streaming backend: {{ health.kafka }}</span>
+      <span v-if="health.status" class="backend-status">Kafka2SSE backend: {{ health.status }}</span>
+      <span v-if="health.kafka" class="kafka-status" title="Either Kafka or Redpanda">Streaming backend: {{ health.kafka }}</span>
+      <span v-if="health.backend_type && health.backend_type !== 'unknown'" class="backend-type">({{ health.backend_type }})</span>
       <span v-if="isConnecting || topicConnected" class="topic-status">
         Topic: {{ isConnecting ? 'connecting' : 'connected' }}
         <span v-if="isConnecting" class="spinner"></span>
@@ -339,6 +341,7 @@ body {
 h1 {
   margin-top: 0;
   color: #333;
+  text-align: center;
 }
 
 .version {
@@ -465,6 +468,10 @@ h1 {
 }
 
 .kafka-status {
+  color: #28a745;
+}
+
+.backend-status {
   color: #28a745;
 }
 
