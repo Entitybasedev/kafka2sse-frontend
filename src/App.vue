@@ -283,8 +283,10 @@ onUnmounted(() => {
     <div class="rate-display">
       <span>Status:</span>
       <span v-if="health.kafka" class="kafka-status">Streaming backend: {{ health.kafka }}</span>
-      <span v-if="isConnecting" class="connecting"><span class="spinner"></span> Connecting...</span>
-      <span v-if="topicConnected" class="topic-status">Topic: connected</span>
+      <span v-if="isConnecting || topicConnected" class="topic-status">
+        Topic: {{ isConnecting ? 'connecting' : 'connected' }}
+        <span v-if="isConnecting" class="spinner"></span>
+      </span>
       <span v-if="topicConnected" class="duration">({{ connectionDuration }})</span>
       <span class="rate-spacer"></span>
       <span>Events/sec: {{ rateCurrent }}</span>
@@ -468,17 +470,13 @@ h1 {
 
 .topic-status {
   color: #28a745;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .duration {
   color: #666;
-}
-
-.connecting {
-  color: #666;
-  display: flex;
-  align-items: center;
-  gap: 6px;
 }
 
 .spinner {
