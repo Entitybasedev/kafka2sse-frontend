@@ -1,5 +1,8 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import StatusBar from './components/StatusBar.vue'
+import TopicControls from './components/TopicControls.vue'
+import MessageFeed from './components/MessageFeed.vue'
 
 const backendUrl = ref(import.meta.env.KAFKA2SSE_BACKEND_URL || 'http://localhost:8888')
 const version = ref(import.meta.env.VITE_APP_VERSION || 'dev')
@@ -246,76 +249,48 @@ onUnmounted(() => {
   <div class="container">
     <h1>Kafka2SSE</h1>
     
-    <div class="controls">
-      <div class="control-group">
-        <label>Backend URL:</label>
-        <input v-model="backendUrl" type="text" @change="fetchTopics" />
-        <button @click="fetchTopics">Refresh Topics</button>
-      </div>
-
-      <div class="control-group">
-        <label>Topic:</label>
-        <select v-model="selectedTopic">
-          <option value="">Select a topic...</option>
-          <option v-for="topic in topics" :key="topic" :value="topic">
-            {{ topic }}
-          </option>
-        </select>
-      </div>
-
-      <div class="control-group">
-        <label>Offset:</label>
-        <input v-model="offset" type="number" placeholder="0 for earliest" min="0" />
-      </div>
-
-      <div class="control-group">
-        <label title="ISO8601 format (e.g., 2026-03-05T12:00:00Z)">Since:</label>
-        <input v-model="since" type="text" placeholder="2026-03-05T12:00:00Z" />
-      </div>
-
-      <div class="control-group">
-        <label>Limit:</label>
-        <input v-model="limit" type="number" placeholder="no limit" min="0" />
-      </div>
-    </div>
+    <TopicControls 
+      :backend-url="backendUrl"
+      :topics="topics"
+      :selected-topic="selectedTopic"
+      :offset="offset"
+      :since="since"
+      :limit="limit"
+      @update:backendUrl="backendUrl = $event"
+      @update:selectedTopic="selectedTopic = $event"
+      @update:offset="offset = $event"
+      @update:since="since = $event"
+      @update:limit="limit = $event"
+      @refresh="fetchTopics"
+    />
 
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="info" class="alert info">{{ info }}</div>
     <div v-if="warning" class="alert warning">{{ warning }}</div>
 
-    <div class="rate-display">
-      <span>Status:</span>
-      <span v-if="health.status" class="backend-status">Kafka2SSE backend: {{ health.status }}</span>
-      <span v-if="health.kafka" class="kafka-status" :title="'Connected to ' + (health.backend_type === 'unknown' ? 'Kafka-compatible' : health.backend_type)">Streaming backend: {{ health.kafka }}</span>
-      <span v-if="isConnecting || topicConnected" class="topic-status">
-        Topic: {{ isConnecting ? 'connecting' : 'connected' }}
-        <span v-if="isConnecting" class="spinner"></span>
-      </span>
-      <span v-if="topicConnected" class="duration">({{ connectionDuration }})</span>
-      <span class="rate-spacer"></span>
-      <span>Events/sec: {{ rateCurrent }}</span>
-      <span>(avg: {{ rateAverage }}/s)</span>
-    </div>
+    <StatusBar 
+      :health="health"
+      :topic-connected="topicConnected"
+      :is-connecting="isConnecting"
+      :connection-duration="connectionDuration"
+      :rate-current="rateCurrent"
+      :rate-average="rateAverage"
+    />
 
-    <div class="actions">
-      <label>
-        <input v-model="prettyPrint" type="checkbox" />
-        Pretty print
-      </label>
-      <label>
-        <input v-model="isPaused" type="checkbox" />
-        Pause
-      </label>
-      <button @click="copyMessages">Copy</button>
-      <button @click="clearMessages">Clear</button>
-      <button @click="manualReconnect">Reconnect</button>
-    </div>
+    <MessageFeed 
+      :messages="formattedMessages"
+      :pretty-print="prettyPrint"
+      :is-paused="isPaused"
+      @update:prettyPrint="prettyPrint = $event"
+      @update:isPaused="isPaused = $event"
+      @copy="copyMessages"
+      @clear="clearMessages"
+      @reconnect="manualReconnect"
+    />
 
     <div class="footer">
       <span class="version">v{{ version }}</span>
     </div>
-
-    <pre class="feed"><code v-for="(msg, i) in formattedMessages" :key="i" v-html="msg"></code></pre>
   </div>
 </template>
 
@@ -364,66 +339,6 @@ h1 {
   color: #856404;
 }
 
-.controls {
-  display: flex;
-  gap: 20px;
-  flex-wrap: wrap;
-  margin-bottom: 15px;
-}
-
-.control-group {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.control-group label {
-  font-weight: bold;
-}
-
-.control-group input[type="text"] {
-  color: #111;
-  padding: 6px 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 14px;
-  width: 250px;
-}
-
-.control-group select {
-  padding: 6px 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 14px;
-  min-width: 200px;
-}
-
-.control-group input[type="number"] {
-  color: #111;
-  padding: 6px 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 14px;
-  width: 150px;
-}
-
-.control-group input::placeholder {
-  color: #666;
-}
-
-.control-group button {
-  padding: 6px 12px;
-  background: #007bff;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.control-group button:hover {
-  background: #0056b3;
-}
-
 .alert {
   padding: 10px 15px;
   border-radius: 4px;
@@ -446,108 +361,6 @@ h1 {
   background: #fff3cd;
   color: #856404;
   border: 1px solid #ffeeba;
-}
-
-.rate-display {
-  display: flex;
-  align-items: center;
-  padding: 10px;
-  background: #e9ecef;
-  border-radius: 4px;
-  margin-bottom: 15px;
-  overflow-x: auto;
-  white-space: nowrap;
-}
-
-.rate-display span {
-  margin-right: 15px;
-  flex-shrink: 0;
-}
-
-.rate-display > span:first-child {
-  font-weight: bold;
-}
-
-.rate-spacer {
-  flex-grow: 1;
-}
-
-.kafka-status {
-  color: #28a745;
-}
-
-.backend-status {
-  color: #28a745;
-}
-
-.topic-status {
-  color: #28a745;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.duration {
-  color: #666;
-}
-
-.spinner {
-  display: inline-block;
-  width: 14px;
-  height: 14px;
-  border: 2px solid #666;
-  border-top-color: transparent;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-.actions {
-  display: flex;
-  gap: 15px;
-  align-items: center;
-  margin-bottom: 15px;
-}
-
-.actions label {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  cursor: pointer;
-}
-
-.actions button {
-  padding: 6px 12px;
-  background: #28a745;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.actions button:hover {
-  background: #218838;
-}
-
-.feed {
-  max-height: 500px;
-  overflow-y: auto;
-  background: #f9f9f9;
-  border: 1px solid #ddd;
-  padding: 10px;
-  border-radius: 4px;
-  font-size: 13px;
-  line-height: 1.4;
-  white-space: pre-wrap;
-  word-break: break-all;
-}
-
-.feed code {
-  display: block;
 }
 
 .footer {
