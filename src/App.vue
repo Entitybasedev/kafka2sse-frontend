@@ -431,6 +431,9 @@ h1 {
 
 .rate-display span {
   margin-right: 20px;
+}
+
+.rate-display > span:first-child {
   font-weight: bold;
 }
 
