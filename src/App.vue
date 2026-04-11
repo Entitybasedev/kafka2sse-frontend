@@ -284,7 +284,7 @@ onUnmounted(() => {
       <span v-if="topicConnected" class="topic-status">Topic: connected</span>
       <span v-if="topicConnected" class="duration">({{ connectionDuration }})</span>
       <span class="rate-spacer"></span>
-      <span>Messages/sec: {{ rateCurrent }}</span>
+      <span>Events/sec: {{ rateCurrent }}</span>
       <span>(avg: {{ rateAverage }}/s)</span>
     </div>
 
