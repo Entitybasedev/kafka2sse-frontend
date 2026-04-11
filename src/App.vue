@@ -283,8 +283,7 @@ onUnmounted(() => {
     <div class="rate-display">
       <span>Status:</span>
       <span v-if="health.status" class="backend-status">Kafka2SSE backend: {{ health.status }}</span>
-      <span v-if="health.kafka" class="kafka-status" title="Either Kafka or Redpanda">Streaming backend: {{ health.kafka }}</span>
-      <span v-if="health.backend_type && health.backend_type !== 'unknown'" class="backend-type">({{ health.backend_type }})</span>
+      <span v-if="health.kafka" class="kafka-status" :title="'Connected to ' + (health.backend_type === 'unknown' ? 'Kafka-compatible' : health.backend_type)">Streaming backend: {{ health.kafka }}</span>
       <span v-if="isConnecting || topicConnected" class="topic-status">
         Topic: {{ isConnecting ? 'connecting' : 'connected' }}
         <span v-if="isConnecting" class="spinner"></span>
@@ -330,7 +329,7 @@ body {
 }
 
 .container {
-  max-width: 900px;
+  max-width: 1100px;
   margin: 0 auto;
   background: white;
   padding: 20px;
