@@ -11,6 +11,7 @@ const prettyPrint = ref(false)
 const isPaused = ref(false)
 const error = ref('')
 const info = ref('')
+const warning = ref('')
 const topicConnected = ref(false)
 const isConnecting = ref(false)
 
@@ -94,7 +95,7 @@ function connectToStream() {
   }
 
   if (!selectedTopic.value) {
-    info.value = 'Select a topic to view messages'
+    warning.value = 'Select a topic to view messages'
     return
   }
 
@@ -104,6 +105,7 @@ function connectToStream() {
   lastCheck = Date.now()
   isConnecting.value = true
   info.value = ''
+  warning.value = ''
   error.value = ''
   isManualClose = false
   reconnectAttempts = 0
@@ -264,7 +266,7 @@ onUnmounted(() => {
       </div>
 
       <div class="control-group">
-        <label>Since (ISO8601):</label>
+        <label title="ISO8601 format (e.g., 2026-03-05T12:00:00Z)">Since:</label>
         <input v-model="since" type="text" placeholder="2026-03-05T12:00:00Z" />
       </div>
 
@@ -276,10 +278,11 @@ onUnmounted(() => {
 
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="info" class="alert info">{{ info }}</div>
+    <div v-if="warning" class="alert warning">{{ warning }}</div>
 
     <div class="rate-display">
       <span>Status:</span>
-      <span v-if="health.kafka" class="kafka-status">Kafka: {{ health.kafka }}</span>
+      <span v-if="health.kafka" class="kafka-status">Streaming backend: {{ health.kafka }}</span>
       <span v-if="isConnecting" class="connecting">↻ Connecting...</span>
       <span v-if="topicConnected" class="topic-status">Topic: connected</span>
       <span v-if="topicConnected" class="duration">({{ connectionDuration }})</span>
@@ -430,6 +433,12 @@ h1 {
   background: #d1ecf1;
   color: #0c5460;
   border: 1px solid #bee5eb;
+}
+
+.alert.warning {
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeeba;
 }
 
 .rate-display {
